@@ -3,15 +3,20 @@
 
 using namespace std;
 
+
 class student_class{
     int id;
     string name;
     float reliability;
-public:
+    public:
     student_class() = default;
     student_class(int _id, const string& _name, float _r)
-    : id(_id), name(_name), reliability(_r) {}
-
+    {
+        id = _id;
+        name= _name;
+        reliability = _r;
+    }
+    
     string get_name() {
         return name;
     }
@@ -19,18 +24,21 @@ public:
         return reliability;
     }
     vector<student_class> read_students();
-
 };
 
 class task_class{
     int id;
     string name;
     float difficulty;
-public:
+    public:
     task_class() = default;
     task_class(int _id, const string& _name, float _d)
-      : id(_id), name(_name), difficulty(_d) {}
-
+    {
+        id = _id;
+        name = _name;
+        difficulty = _d;
+    }
+    
     string get_name() {
         return name;
     }
@@ -43,22 +51,29 @@ public:
 class edge_class{
     int student_id;
     int task_id;
-public:
-    vector<vector<float>> cost;
+    public:
+    static vector<vector<float>> cost;
     vector<vector<float>> read_edges(float , float );
 };
+
+vector<vector<float>> edge_class::cost;
 
 vector<student_class> student_class:: read_students(){
     vector<student_class> students;
     ifstream in("students.csv");
     string header;
     getline(in,header);
-
-    while(!in.eof()){
+    
+    while(getline(in,header)){
+        if(header.empty()) continue;
+        stringstream ss(header);
+        
         string id, name, rel;
-        getline(in,id,',');
-        getline(in,name,',');
-        getline(in,rel,'\n');
+        getline(ss,id,',');
+        getline(ss,name,',');
+        getline(ss,rel,'\n');
+
+        if (id.empty() || name.empty() || rel.empty()) continue;
         int sid = stoi(id);
         float reliability = stof(rel);
         students.emplace_back(sid, name, reliability);
@@ -73,11 +88,16 @@ vector<task_class> task_class :: read_tasks(){
     string header;
     getline(in,header);
 
-    while(!in.eof()){
+    while(getline(in,header)){
+        if(header.empty()) continue;
+        stringstream ss(header);
+
         string id, name, dif;
-        getline(in,id,',');
-        getline(in,name,',');
-        getline(in,dif,'\n');
+        getline(ss,id,',');
+        getline(ss,name,',');
+        getline(ss,dif,'\n');
+
+        if (id.empty() || name.empty() || dif.empty()) continue;
         int tid = stoi(id);
         float difficulty = stof(dif);
         task.emplace_back(tid,name,difficulty);
@@ -91,25 +111,37 @@ vector<vector<float>> edge_class:: read_edges(float alpha, float beta){
     task_class obj2;
     vector<student_class> students = obj1.read_students();
     vector<task_class> tasks = obj2.read_tasks();
-    vector<vector<float>> final_cost(students.size(), vector<float>(tasks.size(),1e6));
+    vector<vector<float>> final_cost(students.size(), vector<float>(tasks.size(),1000000));
     cost.resize(students.size(), vector<float>(tasks.size(),1e6));
-
+    
     ifstream in("edges.csv");
-    while(!in.eof()){
-        string ssid,stid,scost;
-        getline(in,ssid,',');
-        getline(in,stid,',');
-        getline(in, scost, '\n');
+    string line;
+    getline(in, line); // skip header
+
+    while (getline(in, line)) {
+        if (line.empty()) continue;
+
+        stringstream ss(line);
+        string ssid, stid, scost;
+
+        getline(ss, ssid, ',');
+        getline(ss, stid, ',');
+        getline(ss, scost, '\n');
+
+        if (ssid.empty() || stid.empty() || scost.empty()) continue;
+
         int sid = stoi(ssid) - 1;
         int tid = stoi(stid) - 1;
         float ost = stof(scost);
+
         cost[sid][tid] = ost;
         final_cost[sid][tid] = beta * ost + alpha * abs(students[sid].get_reliability() - tasks[tid].get_difficulty());
     }
+
     return final_cost;
 }
 
-vector<int> hungarian(float alpha, float beta) {
+vector<int> hungarian(float alpha = 0.5, float beta = 0.5) {
     edge_class obj;
     vector<vector<float>> costMatrix = obj.read_edges(alpha, beta);
     int numRows = costMatrix.size(), numCols = costMatrix[0].size();
@@ -120,7 +152,7 @@ vector<int> hungarian(float alpha, float beta) {
         columnMatch[0] = currentRow;
         int currentCol = 0;
         vector<float> minReducedCost(numCols + 1, FLT_MAX);
-        vector<char> visited(numCols + 1, false);
+        vector<bool> visited(numCols + 1, false);
 
         do {
             visited[currentCol] = true;
@@ -169,8 +201,8 @@ vector<int> hungarian(float alpha, float beta) {
 }
 
 int main(){
-    float weightage_reliability = 0;
-    float weightage_cost = 0;
+    float weightage_reliability = 0.0;
+    float weightage_cost = 0.0;
     student_class obj1;
     task_class obj2;
     edge_class obj3;
@@ -178,14 +210,15 @@ int main(){
     cout << "what should be the weightage of reliability? (0 - 1) "<< endl;
     cout << "The point which will left after subtracting the reliability from 1 will be given to weightage of cost" << endl;
     cin >> weightage_reliability;
-    weightage_cost = 100 - weightage_reliability;
+    weightage_cost = 1 - weightage_reliability;
     cout << "So, after subtracting the weightage of reliability, weightage_cost is :" << weightage_cost << endl;
     
     vector<int> assignment = hungarian(weightage_reliability, weightage_cost);
 
-    vector<vector<float>> prize = obj3.cost;
+    vector<vector<float>> prize = obj3.read_edges(weightage_reliability, weightage_cost);
     vector<student_class> students = obj1.read_students();
     vector<task_class> tasks = obj2.read_tasks();
+
 
     cout << "Assignment:\n";
     for (int i = 0; i < assignment.size(); ++i) {
