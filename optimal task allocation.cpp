@@ -116,7 +116,7 @@ vector<vector<float>> edge_class:: read_edges(float alpha, float beta){
     
     ifstream in("edges.csv");
     string line;
-    getline(in, line); // skip header
+    getline(in, line);
 
     while (getline(in, line)) {
         if (line.empty()) continue;
@@ -215,20 +215,23 @@ int main(){
     
     vector<int> assignment = hungarian(weightage_reliability, weightage_cost);
 
-    vector<vector<float>> prize = obj3.read_edges(weightage_reliability, weightage_cost);
+    vector<vector<float>> prize = obj3.cost;
     vector<student_class> students = obj1.read_students();
     vector<task_class> tasks = obj2.read_tasks();
 
-
+    int total_cost = 0;
     cout << "Assignment:\n";
     for (int i = 0; i < assignment.size(); ++i) {
         if (assignment[i] != -1 && prize[i][assignment[i]] < 1000000) {
             cout << students[i].get_name() << " -> " << tasks[assignment[i]].get_name()
                  << " (cost: " << prize[i][assignment[i]] << ")\n";
+            total_cost += prize[i][assignment[i]];
         } else {
             cout << students[i].get_name() << " -> No task assigned\n";
         }
     }
+
+    cout << "Total cost: " << total_cost << endl;
 
     return 0;
 }
